@@ -38,8 +38,6 @@ class GravityFormsMigrator extends BaseMigrator
             }
         }
 
-        //dd($field);
-
         $submitBtn = $this->getSubmitBttn([
             'uniqElKey' => time(),
             'class' => '',
@@ -54,7 +52,7 @@ class GravityFormsMigrator extends BaseMigrator
         ];
 
         if ($this->hasStep && defined('FLUENTFORMPRO')) {
-            $returnData['stepsWrapper'] = $this->getStepWrapper();
+            $returnData['stepsWrapper'] = $this->getStepWrapper($form);
         }
 
         return $returnData;
@@ -145,10 +143,10 @@ class GravityFormsMigrator extends BaseMigrator
                 $args['upload_btn_text'] = 'File Upload';
                 break;
             case 'custom_html':
-                $args['html_codes'] = $field['content'];
+                $args['html_codes'] = $this->dynamicShortcodeConverter($field['content']);
                 break;
             case 'section_break':
-                $args['section_break_desc'] = $field['description'];
+                $args['section_break_desc'] = $this->dynamicShortcodeConverter($field['description']);
                 break;
             case 'terms_and_condition':
                 $args['tnc_html'] = $field['description'];
@@ -451,18 +449,27 @@ class GravityFormsMigrator extends BaseMigrator
     /**
      * @return array
      */
-    private function getStepWrapper()
+    private function getStepWrapper($form)
     {
+        var_dump($form);
+        if($form['pagination']['type'] === 'steps') {
+            $progressBar = 'steps';
+        } else if($form['pagination']['type'] === 'none') {
+            $progressBar = '';
+        } else {
+            $progressBar = 'progress-bar';
+        }
+
         return [
             'stepStart' => [
                 'element' => 'step_start',
                 'attributes' => [
                     'id' => '',
-                    'class' => '',
+                    'class' => $form['firstPageCssClass'],
                 ],
                 'settings' => [
-                    'progress_indicator' => 'progress-bar',
-                    'step_titles' => [],
+                    'progress_indicator' => $progressBar,
+                    'step_titles' => $form['pagination']['pages'],
                     'disable_auto_focus' => 'no',
                     'enable_auto_slider' => 'no',
                     'enable_step_data_persistency' => 'no',
@@ -480,9 +487,9 @@ class GravityFormsMigrator extends BaseMigrator
                 ],
                 'settings' => [
                     'prev_btn' => [
-                        'type' => 'default',
-                        'text' => 'Previous',
-                        'img_url' => ''
+                        'type' => $form['lastPageButton']['type'] == 'image' ? 'img' : 'default',
+                        'text' => $form['lastPageButton']['text'],
+                        'img_url' => $form['lastPageButton']['imageUrl']
                     ]
                 ],
                 'editor_options' => [
