@@ -81,7 +81,7 @@ class CalderaMigrator extends BaseMigrator
             'name' => $field['slug'],
             'placeholder' => ArrayHelper::get($field, 'config.placeholder'),
             'class' => $field['config']['custom_class'],
-            'value' => ArrayHelper::get($field, 'config.default'),
+            'value' => $this->dynamicShortcodeConverter(ArrayHelper::get($field, 'config.default')),
             'help_message' => ArrayHelper::get($field, 'caption'),
         ];
 
@@ -193,7 +193,22 @@ class CalderaMigrator extends BaseMigrator
         return '';
     }
 
-    // Function to convert shortcodes in numeric field calculations (todo)
+     /**
+     * @param $field
+     * @return int
+     */
+    private function getFileSize($field) {
+        $fileSizeByte = ArrayHelper::get($field, 'config.max_upload', 6000);
+        $fileSizeKilobyte = ceil(($fileSizeByte * 1024)/1000);
+
+        return $fileSizeKilobyte;
+    }
+
+    /**
+     * Function to convert shortcodes in numeric field calculations 
+     * @param $field, $form
+     * @return string
+    */ 
     private function convertFormulas($calculationField, $form) {
 
         $calderaFormula;
@@ -231,17 +246,6 @@ class CalderaMigrator extends BaseMigrator
     }
 
     /**
-     * @param $field
-     * @return int
-     */
-    private function getFileSize($field) {
-        $fileSizeByte = ArrayHelper::get($field, 'config.max_upload', 6000);
-        $fileSizeKilobyte = ceil(($fileSizeByte * 1024)/1000);
-
-        return $fileSizeKilobyte;
-    }
-
-    /**
      * @return array
      */
     public function fieldPrefix() 
@@ -260,6 +264,49 @@ class CalderaMigrator extends BaseMigrator
 
         return $fieldPrefix;
     }
+
+
+    /**
+     * Convert Caldera Shortcodes to Fluent forms dynamic shortcodes.
+     * @param $msg
+     * @return string
+     */
+    private function dynamicShortcodeConverter($msg) {
+
+        $shortcodes = $this->dynamicShortcodes();
+
+        $msg = str_replace(array_keys($shortcodes), array_values($shortcodes), $msg);
+
+        return $msg;
+    }
+
+    /**
+     * Get shortcode in fluentforms format
+     * @return array
+     */
+    protected function dynamicShortcodes()
+    {
+        $dynamicShortcodes = [
+            '{entry_id}' => '{submission.id}',
+            '{entry_token}' => '',
+            'user:' => 'user.',
+            'user.id' => 'user.ID',
+            '{post:*}' => '',
+            '{request:*}' => '',
+            '{get:*}' => '{get.Replace_text}',
+            'embed_post:' => 'embed_post.',
+            '{post_meta:*}' => '{embed_post.meta.YOUR_META_KEY}',
+            'date:' => 'date.',
+            '{login_url}' => '{wp.site_url}/wp-login.php',
+            '{logout_url}' => '{wp.site_url}/wp-login.php?action=logout&_wpnonce=db111219f3',
+            '{register_url}' => '{wp.site_url}/wp-login.php?action=register',
+            '{lostpassword_url}' => '{wp.site_url}/wp-login.php?action=lostpassword',
+            '{referer_url}' => '{http_referer}'
+        ];
+
+        return $dynamicShortcodes;
+    }
+
 
     /**
      * @return array

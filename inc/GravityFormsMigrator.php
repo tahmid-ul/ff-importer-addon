@@ -70,9 +70,9 @@ class GravityFormsMigrator extends BaseMigrator
             'label_placement' => $this->getLabelPlacement($field),
             'admin_field_label' => ArrayHelper::get($field, 'adminLabel'),
             'name' => $this->getInputName($field),
-            'placeholder' => ArrayHelper::get($field, 'placeholder'),
+            'placeholder' => $this->dynamicShortcodeConverter(ArrayHelper::get($field, 'placeholder')),
             'class' => $field['cssClass'],
-            'value' => ArrayHelper::get($field, 'defaultValue'),
+            'value' => $this->dynamicShortcodeConverter(ArrayHelper::get($field, 'defaultValue')),
             'help_message' => ArrayHelper::get($field, 'description'),
         ];
         
@@ -507,7 +507,7 @@ class GravityFormsMigrator extends BaseMigrator
         $firstConfirmation = array_pop($array);
         $confirmation = wp_parse_args(
             [
-                'messageToShow' => $firstConfirmation['message'],
+                'messageToShow' => $this->dynamicShortcodeConverter($firstConfirmation['message']),
                 'samePageFormBehavior' => 'hide_form',
             ], $defaults['confirmation']
         );
@@ -540,23 +540,35 @@ class GravityFormsMigrator extends BaseMigrator
         ];
         $notifications = [];
         foreach ($form['notifications'] as $notification) {
+
+            
+            // Convert shortcodes in email notification
+            $notification['name'] = $this->dynamicShortcodeConverter($notification['name']);
+            $notification['subject'] = $this->dynamicShortcodeConverter($notification['subject']);
+            $notification['to'] = $this->dynamicShortcodeConverter($notification['to']);
+            $notification['replyTo'] = $this->dynamicShortcodeConverter($notification['replyTo']);
+            $notification['message'] = $this->dynamicShortcodeConverter($notification['message']);
+            $notification['fromName'] = $this->dynamicShortcodeConverter($notification['fromName']);
+            $notification['from'] = $this->dynamicShortcodeConverter($notification['from']);
+            $notification['bcc'] = $this->dynamicShortcodeConverter($notification['bcc']);
+
             $notifications[] =
                 [
                     'sendTo' => [
                         'type' => 'email',
-                        'email' => str_replace('{admin_email}', '{wp.admin_email}', $notification['to']),
+                        'email' => $notification['to'],
                         'field' => '',
                         'routing' => [],
                     ],
                     'enabled' => ArrayHelper::isTrue($notification, 'isActive'),
                     'name' => $notification['name'],
                     'subject' => $notification['subject'],
-                    'to' => str_replace('{admin_email}', '{wp.admin_email}', $notification['to']),
-                    'replyTo' => ArrayHelper::get($notification, 'replyTo'),
-                    'message' => str_replace('{all_fields}', '{all_data}', $notification['message']),
-                    'fromName' => ArrayHelper::get($notification, 'fromName'),
-                    'fromAddress' => ArrayHelper::get($notification, 'from'),
-                    'bcc' => ArrayHelper::get($notification, 'bcc'),
+                    'to' => $notification['to'],
+                    'replyTo' => $notification['replyTo'],
+                    'message' => $notification['message'],
+                    'fromName' => $notification['fromName'],
+                    'fromEmail' => $notification['from'],
+                    'bcc' => $notification['bcc'],
                     'cc' => ArrayHelper::get($notification, 'cc'),
                 ];
 
@@ -571,6 +583,42 @@ class GravityFormsMigrator extends BaseMigrator
             'delete_entry_on_submission' => 'no',
             'notifications' => $notifications
         ];
+    }
+
+    
+    /**
+     * Convert Gravity Forms merge Tags to Fluent forms dynamic shortcodes.
+     * @param $msg
+     * @return string
+     */
+    private function dynamicShortcodeConverter($msg) {
+
+        $shortcodes = $this->dynamicShortcodes();
+
+        $msg = str_replace(array_keys($shortcodes), array_values($shortcodes), $msg);
+
+        return $msg;
+    }
+
+    /**
+     * Get shortcode in fluentforms format
+     * @return array
+     */
+    protected function dynamicShortcodes()
+    {
+        $dynamicShortcodes = [
+            'user:' => 'user.',
+            '{date_dmy}' => '{date.d/m/Y}',
+            '{date_mdy}' => '{date.m/d/Y}',
+            'embed_post:' => 'embed_post.',
+            '{embed_url}' => '{embed_post.permalink}',
+            '{referer}' => '{http_referer}',
+            '{user_agent}' => '',
+            '{all_fields}' => '{all_data}',
+            '{admin_email}' => '{wp.admin_email}'
+        ];
+
+        return $dynamicShortcodes;
     }
 
     protected function getForms()
