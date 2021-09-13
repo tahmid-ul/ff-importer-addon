@@ -451,7 +451,7 @@ class GravityFormsMigrator extends BaseMigrator
      */
     private function getStepWrapper($form)
     {
-        var_dump($form);
+        
         if($form['pagination']['type'] === 'steps') {
             $progressBar = 'steps';
         } else if($form['pagination']['type'] === 'none') {
@@ -518,20 +518,31 @@ class GravityFormsMigrator extends BaseMigrator
                 'samePageFormBehavior' => 'hide_form',
             ], $defaults['confirmation']
         );
+        
+        $defaults['layout']['labelPlacement'] = ArrayHelper::get($form,
+        'labelPlacement') == 'left_label' ? 'left' : (ArrayHelper::get($form,
+        'labelPlacement') == 'right_label' ? 'right' : 'top');
+
         $defaults['restrictions']['requireLogin']['enabled'] = ArrayHelper::isTrue($form, 'requireLogin');
-        $defaults['restrictions']['requireLogin']['requireLoginMsg'] = ArrayHelper::isTrue($form,
+        $defaults['restrictions']['requireLogin']['requireLoginMsg'] = ArrayHelper::get($form,
             'requireLoginMessage');
         $defaults['restrictions']['limitNumberOfEntries']['enabled'] = ArrayHelper::isTrue($form, 'limitEntries');
-        $defaults['restrictions']['limitNumberOfEntries']['numberOfEntries'] = ArrayHelper::isTrue($form,
+        $defaults['restrictions']['limitNumberOfEntries']['numberOfEntries'] = ArrayHelper::get($form,
             'limitEntriesCount');
-        $defaults['restrictions']['limitNumberOfEntries']['period'] = ArrayHelper::isTrue($form, 'limitEntriesPeriod');
-        $defaults['restrictions']['limitNumberOfEntries']['limitReachedMsg'] = ArrayHelper::isTrue($form,
+        $defaults['restrictions']['limitNumberOfEntries']['period'] = ArrayHelper::get($form, 'limitEntriesPeriod');
+        $defaults['restrictions']['limitNumberOfEntries']['limitReachedMsg'] = ArrayHelper::get($form,
             'limitEntriesMessage');
         $defaults['restrictions']['scheduleForm']['enabled'] = ArrayHelper::isTrue($form, 'scheduleForm');
-        $defaults['restrictions']['scheduleForm']['start'] = ArrayHelper::isTrue($form, 'scheduleStart');
-        $defaults['restrictions']['scheduleForm']['end'] = ArrayHelper::isTrue($form, 'scheduleEnd');
-        $defaults['restrictions']['scheduleForm']['pendingMsg'] = ArrayHelper::isTrue($form, 'schedulePendingMessage');
-        $defaults['restrictions']['scheduleForm']['expiredMsg'] = ArrayHelper::isTrue($form, 'scheduleMessage');
+        $defaults['restrictions']['scheduleForm']['start'] = ArrayHelper::get($form, 'scheduleStart');
+        $defaults['restrictions']['scheduleForm']['end'] = ArrayHelper::get($form, 'scheduleEnd');
+        $defaults['restrictions']['scheduleForm']['pendingMsg'] = ArrayHelper::get($form, 'schedulePendingMessage');
+        $defaults['restrictions']['scheduleForm']['expiredMsg'] = ArrayHelper::get($form, 'scheduleMessage');
+
+        $deleteEntries = [
+            'deleteEnabled' => $form['personalData']['retention']['policy'] !== 'retain',
+            'deleteDays' => $form['personalData']['retention']['retain_entries_days']
+        ];
+
         $advancedValidation = [
             'status' => false,
             'type' => 'all',
@@ -545,10 +556,10 @@ class GravityFormsMigrator extends BaseMigrator
             'error_message' => '',
             'validation_type' => 'fail_on_condition_met'
         ];
+
         $notifications = [];
         foreach ($form['notifications'] as $notification) {
 
-            
             // Convert shortcodes in email notification
             $notification['name'] = $this->dynamicShortcodeConverter($notification['name']);
             $notification['subject'] = $this->dynamicShortcodeConverter($notification['subject']);
@@ -580,11 +591,14 @@ class GravityFormsMigrator extends BaseMigrator
                 ];
 
         }
+
         return [
             'formSettings' => [
                 'confirmation' => $confirmation,
                 'restrictions' => $defaults['restrictions'],
                 'layout' => $defaults['layout'],
+                'delete_after_x_days' => $deleteEntries['deleteEnabled'],
+                'auto_delete_days' => $deleteEntries['deleteDays']
             ],
             'advancedValidationSettings' => $advancedValidation,
             'delete_entry_on_submission' => 'no',
